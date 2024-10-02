@@ -1,3 +1,16 @@
+from Data.KittiOdometry import KittiOdomDataset
+from Data.SemanticKitti import KittiDataset
+from Data.Rellis3D import Rellis3dDataset
+from Models.ConvBKI import *
+from Models.model_utils import *
+from Data.utils import *
+from torch.utils.tensorboard import SummaryWriter
+from torch.utils.data import Dataset, DataLoader
+import torch.optim as optim
+from torch import nn
+import torch
+from tqdm import tqdm
+import numpy as np
 import os
 import pdb
 import time
@@ -5,25 +18,13 @@ import json
 import yaml
 os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
-import numpy as np
-from tqdm import tqdm
 
 # Torch imports
-import torch
-from torch import nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 # Custom Imports
-from Data.utils import *
-from Models.model_utils import *
-from Models.ConvBKI import *
-from Data.Rellis3D import Rellis3dDataset
-from Data.SemanticKitti import KittiDataset
-from Data.KittiOdometry import KittiOdomDataset
 
-MODEL_NAME = "ConvBKI_Single"
+# MODEL_NAME = "ConvBKI_Single"
+MODEL_NAME = "ConvBKI_Single_02_odom"
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print("device is ", device)
 print("Model is", MODEL_NAME)
@@ -60,6 +61,7 @@ if not os.path.exists(MODEL_RUN_DIR):
 
 # Data Parameters
 data_params_file = os.path.join(os.getcwd(), "Config", dataset + ".yaml")
+print(data_params_file)
 with open(data_params_file, "r") as stream:
     try:
         data_params = yaml.safe_load(stream)
@@ -72,10 +74,10 @@ with open(data_params_file, "r") as stream:
 epsilon_w = 1e-5  # eps to avoid zero division
 # TODO: Try counting for seq 4, ablation studies on seq 4
 weights = np.zeros(class_frequencies.shape)
-weights[1:] = (1 / np.log(class_frequencies[1:] + epsilon_w) )
+weights[1:] = (1 / np.log(class_frequencies[1:] + epsilon_w))
 weights = torch.from_numpy(weights).to(dtype=FLOAT_TYPE, device=device, non_blocking=True)
 criterion = nn.NLLLoss(weight=weights, ignore_index=0)
-scenes = [ s for s in sorted(os.listdir(TRAIN_DIR)) if s.isdigit() ]
+scenes = [s for s in sorted(os.listdir(TRAIN_DIR)) if s.isdigit()]
 
 # Load model
 lr = model_params["train"]["lr"]
@@ -104,14 +106,16 @@ if dataset == "semantic_kitti":
                           to_continuous=TO_CONT, pred_path=PRED_PATH)
 if dataset == "kitti_odometry":
     train_ds = KittiOdomDataset(model_params["train"]["grid_params"], directory=TRAIN_DIR, device=device,
-                            num_frames=NUM_FRAMES, remap=False, use_aug=False, data_split="train", from_continuous=FROM_CONT,
-                            to_continuous=TO_CONT, num_classes=model_params["num_classes"])
+                                num_frames=NUM_FRAMES, remap=False, use_aug=False, data_split="train", from_continuous=FROM_CONT,
+                                to_continuous=TO_CONT, num_classes=model_params["num_classes"])
     val_ds = KittiOdomDataset(model_params["train"]["grid_params"], directory=TRAIN_DIR, device=device,
-                          num_frames=NUM_FRAMES, remap=False, use_aug=False, data_split="val", from_continuous=FROM_CONT,
-                          to_continuous=TO_CONT, num_classes=model_params["num_classes"])
+                              num_frames=NUM_FRAMES, remap=False, use_aug=False, data_split="val", from_continuous=FROM_CONT,
+                              to_continuous=TO_CONT, num_classes=model_params["num_classes"])
 
-dataloader_train = DataLoader(train_ds, batch_size=B, shuffle=True, collate_fn=train_ds.collate_fn, num_workers=NUM_WORKERS, pin_memory=True)
-dataloader_val = DataLoader(val_ds, batch_size=B, shuffle=False, collate_fn=val_ds.collate_fn, num_workers=NUM_WORKERS, pin_memory=True)
+dataloader_train = DataLoader(train_ds, batch_size=B, shuffle=True,
+                              collate_fn=train_ds.collate_fn, num_workers=NUM_WORKERS, pin_memory=True)
+dataloader_val = DataLoader(val_ds, batch_size=B, shuffle=False, collate_fn=val_ds.collate_fn,
+                            num_workers=NUM_WORKERS, pin_memory=True)
 
 trial_dir = MODEL_RUN_DIR
 save_dir = os.path.join("Models", "Weights", SAVE_NAME)
@@ -251,9 +255,9 @@ def semantic_loop(dataloader, epoch, train_count=None, training=False):
     if not training:
         all_intersections = all_intersections[all_unions > 0]
         all_unions = all_unions[all_unions > 0]
-        print(f'Epoch Num: {epoch} ------ average val accuracy: {num_correct/num_total}')
+        print(f'Epoch Num: {epoch} ------ average val accuracy: {num_correct / num_total}')
         print(f'Epoch Num: {epoch} ------ val miou: {np.mean(all_intersections / all_unions)}')
-        writer.add_scalar(SAVE_NAME + '/Accuracy/Val', num_correct/num_total, epoch)
+        writer.add_scalar(SAVE_NAME + '/Accuracy/Val', num_correct / num_total, epoch)
         writer.add_scalar(SAVE_NAME + '/mIoU/Val', np.mean(all_intersections / all_unions), epoch)
 
     return model, train_count

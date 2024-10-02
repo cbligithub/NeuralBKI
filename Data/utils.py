@@ -1,7 +1,7 @@
 import os
 import pdb
 from matplotlib import markers
-import rospy
+# import rospy
 import numpy as np
 import time
 import os
@@ -12,6 +12,8 @@ from geometry_msgs.msg import Point32
 from std_msgs.msg import ColorRGBA
 
 # Intersection, union for one frame
+
+
 def iou_one_frame(pred, target, n_classes=21):
     pred = pred.reshape(-1)
     target = target.reshape(-1)
@@ -21,10 +23,11 @@ def iou_one_frame(pred, target, n_classes=21):
     for cls in range(n_classes):
         pred_inds = pred == cls
         target_inds = target == cls
-        
+
         intersection[cls] = (pred_inds[target_inds]).long().sum().item()  # Cast to long to prevent overflows
         union[cls] = pred_inds.long().sum().item() + target_inds.long().sum().item() - intersection[cls]
     return intersection, union
+
 
 def points_to_voxels_torch(voxel_grid, points, min_bound, grid_dims, voxel_sizes):
     voxels = torch.floor((points - min_bound) / voxel_sizes).to(dtype=torch.int)
@@ -53,7 +56,7 @@ def publish_voxels(map_object, min_dim, max_dim, grid_dims, colors, next_map):
     marker = Marker()
     marker.id = 0
     marker.ns = "Global_Semantic_Map"
-    marker.header.frame_id = "map" # change this to match model + scene name LMSC_000001
+    marker.header.frame_id = "map"  # change this to match model + scene name LMSC_000001
     marker.type = marker.CUBE_LIST
     marker.action = marker.ADD
     marker.lifetime.secs = 0
@@ -68,7 +71,7 @@ def publish_voxels(map_object, min_dim, max_dim, grid_dims, colors, next_map):
     marker.scale.y = (max_dim[1] - min_dim[1]) / grid_dims[1]
     marker.scale.z = (max_dim[2] - min_dim[2]) / grid_dims[2]
 
-    semantic_labels = map_object.global_map[:,3:]
+    semantic_labels = map_object.global_map[:, 3:]
     centroids = map_object.global_map[:, :3]
 
     # Threshold here

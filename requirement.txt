@@ -1,0 +1,7 @@
+torch
+pyyaml
+numpy
+tqdm
+tensorboard
+matplotlib
+#ros1 or 2
